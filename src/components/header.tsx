@@ -87,52 +87,7 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, setIsDarkMode }) => {
         </button>
 
         {/* User Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setOpen(!open)}
-            className="flex items-center space-x-2 bg-transparent focus:outline-none"
-          >
-            <div className="bg-white text-black w-9 h-9 rounded-full flex items-center justify-center">
-              <UserCircle className="w-6 h-6" />
-            </div>
-            <span className="text-sm font-semibold">{username}</span>
-            <svg
-              className={`w-4 h-4 transform ${open ? "rotate-180" : "rotate-0"} transition`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {open && (
-            <div className="absolute right-0 mt-2 w-52 bg-white text-black shadow-lg rounded-lg overflow-hidden z-50">
-              <a href="#" className="flex items-center px-4 py-2 hover:bg-gray-100">
-                <UserCircle className="w-4 h-4 mr-2" /> Profile
-              </a>
-              <a href="#" className="flex items-center px-4 py-2 hover:bg-gray-100">
-                <Settings className="w-4 h-4 mr-2" /> Settings
-              </a>
-              <a href="#" className="flex items-center px-4 py-2 hover:bg-gray-100">
-                <Home className="w-4 h-4 mr-2" /> Dashboard
-              </a>
-              <a href="#" className="flex items-center px-4 py-2 hover:bg-gray-100">
-                <Download className="w-4 h-4 mr-2" /> Downloads
-              </a>
-              <hr className="border-gray-200" />
-              <a
-                href="/login"
-                onClick={() => {
-                  localStorage.clear();
-                }}
-                className="flex items-center px-4 py-2 text-red-600 hover:bg-gray-100"
-              >
-                <LogOut className="w-4 h-4 mr-2" /> Logout
-              </a>
-            </div>
-          )}
-        </div>
+       
       </div>
     </header>
   );

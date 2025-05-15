@@ -1,223 +1,352 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Activity,
-  AlertTriangle,
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Activity, 
+  Power, 
+  PowerOff,
+  Bell,
+  BarChart,
   CheckCircle,
-  ThermometerSun,
-  Trash2,
-  UserCircle,
-  Pencil,
-  Gauge,
-  Plus,
-  MonitorCheck,
-  Cpu,
-  Thermometer,
-  Waves,
-  Battery
+  XCircle,
+  Users,
+  Settings,
+  Plus
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ResponsiveContainer,
-  LineChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  Line,
-  Area,
-  AreaChart
-} from 'recharts';
+import { motion } from 'framer-motion';
 
-const UserDashboard: React.FC = () => {
-  const [sensors, setSensors] = useState([
-    { id: 1, name: 'Motor Temperature Sensor', type: 'Temperature', status: 'Active', value: '75°C', health: 92 },
-    { id: 2, name: 'Vibration Analyzer', type: 'Vibration', status: 'Warning', value: '2.8 mm/s', health: 78 },
-    { id: 3, name: 'Pressure Monitor', type: 'Pressure', status: 'Active', value: '6.2 bar', health: 95 },
-    { id: 4, name: 'Power Consumption', type: 'Power', status: 'Critical', value: '4.2 kW', health: 65 }
-  ]);
+interface Equipment {
+  id: number;
+  name: string;
+  status: 'active' | 'inactive';
+  type: string;
+}
 
-  type DataPoint = {
-    time: string;
-    temperature: number;
-    vibration: number;
-    systemStatus: number;
-  };
+interface AlertSummary {
+  critical: number;
+  major: number;
+  minor: number;
+}
 
-  const [sensorData, setSensorData] = useState<DataPoint[]>([]);
+interface User {
+  id: string;
+  name: string;
+  avatar: string;
+  lastSeen: string;
+}
+
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6 }
+  }
+};
+
+function UserDashboard() {
+
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const generateData = () => {
-      const now = new Date();
-      const baseTemp = 70 + Math.sin(now.getSeconds() / 10) * 5;
-      const baseVibration = 2 + Math.cos(now.getSeconds() / 8) * 0.8;
-      
-      return {
-        time: now.toLocaleTimeString(),
-        temperature: baseTemp + (Math.random() * 2 - 1),
-        vibration: Math.max(0, baseVibration + (Math.random() * 0.4 - 0.2)),
-        systemStatus: 85 + Math.sin(now.getSeconds() / 15) * 10
-      };
-    };
+    const role = localStorage.getItem('role');
+    if (role !== 'USER') {
+      navigate('/unauthorized');
+    }
+  }, [navigate]);
+  
+  const [formData, setFormData] = useState({ 
+    username: '', 
+    email: '', 
+    password: '', 
+    firstname: '', 
+    lastname: '', 
+    role: 'USER' 
+  });
+  const [showModal, setShowModal] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [alerts, setAlerts] = useState<AlertSummary>({ critical: 0, major: 0, minor: 0 });
+  const [totalEquipment, setTotalEquipment] = useState<number>(0);
+  const [loading, setLoading] = useState({
+    equipment: true,
+    alerts: true,
+    total: true
+  });
+  const [error, setError] = useState<string | null>(null);
 
-    const interval = setInterval(() => {
-      setSensorData(prev => [...prev.slice(-20), generateData()]);
-    }, 1000);
+  const mockUsers: User[] = [
+    { id: '1', name: 'Mohamed Hayyan', avatar: '', lastSeen: new Date().toISOString() },
+    { id: '2', name: 'Loubna chalkhane', avatar: '', lastSeen: new Date().toISOString() },
+    { id: '3', name: 'Anas hafid', avatar: '', lastSeen: new Date().toISOString() },
+  ];
+   
+  
 
-    return () => clearInterval(interval);
-  }, []);
+  
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'warning': return 'bg-yellow-100 text-yellow-800';
-      case 'critical': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading({ ...loading, equipment: true });
+    try {
+      const response = await fetch('http://localhost:8080/api/auth/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (!response.ok) throw new Error('Failed to register user');
+      setMessage('User registered successfully!');
+      setIsSuccess(true);
+      setFormData({ 
+        username: '', 
+        email: '', 
+        password: '', 
+        firstname: '', 
+        lastname: '', 
+        role: 'USER' 
+      });
+      setShowModal(false);
+    } catch (error) {
+      console.error(error);
+      setMessage('Error registering user');
+      setIsSuccess(false);
+    } finally {
+      setLoading({ ...loading, equipment: false });
+      setShowMessageModal(true);
     }
   };
 
-  const getHealthColor = (health: number) => {
-    if (health >= 90) return 'text-green-500';
-    if (health >= 70) return 'text-yellow-500';
-    return 'text-red-500';
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch total equipment
+        const totalRes = await fetch('http://localhost:8080/api/equipments/total');
+        if (!totalRes.ok) throw new Error('Failed to fetch total equipment');
+        setTotalEquipment(await totalRes.json());
+
+        // Fetch all equipment
+        const equipmentRes = await fetch('http://localhost:8080/api/equipments');
+        if (!equipmentRes.ok) throw new Error('Failed to fetch equipment');
+        setEquipment(await equipmentRes.json());
+
+        // Fetch alerts
+        
+
+        setLoading({ equipment: false, alerts: false, total: false });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+        setLoading({ equipment: false, alerts: false, total: false });
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const activeEquipment = equipment.filter(eq => eq.status === 'active').length;
+  const inactiveEquipment = equipment.length - activeEquipment;
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-red-500 text-xl">{error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 min-h-screen bg-gray-100 text-gray-900 transition-colors duration-300">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex justify-between items-center mb-6"
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header */}
+      <motion.header 
+        className="bg-white shadow-lg p-4"
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.5 }}
       >
-        <h1 className="text-2xl font-bold">Industrial Equipment Monitoring</h1>
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            System Online
-          </span>
-        </div>
-      </motion.div>
-
-      {/* Sensor Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <AnimatePresence>
-          {sensors.map((sensor, index) => (
-            <motion.div
-              key={sensor.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow"
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <motion.h1 
+            className="text-2xl font-bold text-gray-800 flex items-center gap-2"
+            whileHover={{ scale: 1.05 }}
+          >
+            <Activity className="text-blue-600" />
+            Industrial Monitoring Dashboard
+          </motion.h1>
+          <div className="flex items-center gap-6">
+            <motion.div 
+              className="flex items-center gap-2"
+              whileHover={{ scale: 1.05 }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-full ${getStatusColor(sensor.status)} bg-opacity-20`}>
-                  {sensor.type === 'Temperature' && <Thermometer className="w-6 h-6" />}
-                  {sensor.type === 'Vibration' && <Waves className="w-6 h-6" />}
-                  {sensor.type === 'Pressure' && <Gauge className="w-6 h-6" />}
-                  {sensor.type === 'Power' && <Battery className="w-6 h-6" />}
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(sensor.status)}`}>
-                  {sensor.status}
+              <Users className="text-gray-600" />
+              <span className="font-medium">{mockUsers.length} Users Online</span>
+            </motion.div>
+            <motion.button
+              className="p-2 rounded-full hover:bg-gray-100"
+              whileHover={{ rotate: 180 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Settings className="text-gray-600" />
+            </motion.button>
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto p-6">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+        >
+          {/* Total Equipment */}
+          <motion.div variants={itemVariants} className="bg-white rounded-xl shadow p-6">
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium text-gray-700">Total Equipment</h3>
+              <Activity className={`text-blue-600 ${loading.total ? 'animate-pulse' : ''}`} />
+            </div>
+            <p className="text-3xl font-bold mt-2">
+              {loading.total ? '...' : totalEquipment}
+            </p>
+          </motion.div>
+
+          {/* Equipment Status */}
+          <motion.div variants={itemVariants} className="bg-white rounded-xl shadow p-6">
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium text-gray-700">Equipment Status</h3>
+              <div className="flex gap-2">
+                <Power className="text-green-600" />
+                <PowerOff className="text-red-600" />
+              </div>
+            </div>
+            <div className="flex gap-4 mt-2 items-center">
+              <p className="text-3xl font-bold text-green-600">
+                {loading.equipment ? '...' : activeEquipment}
+              </p>
+              <span className="text-gray-400">/</span>
+              <p className="text-3xl font-bold text-red-600">
+                {loading.equipment ? '...' : inactiveEquipment}
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Alerts */}
+          <motion.div variants={itemVariants} className="bg-white rounded-xl shadow p-6">
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium text-gray-700">Current Alerts</h3>
+              <Bell className={`text-yellow-600 ${loading.alerts ? 'animate-pulse' : ''}`} />
+            </div>
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-red-600">Critical</span>
+                <span className="font-bold">
+                  {loading.alerts ? '...' : alerts.critical}
                 </span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">{sensor.name}</h3>
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-sm text-gray-600">Current Value</p>
-                  <p className="text-2xl font-bold">{sensor.value}</p>
+              <div className="flex justify-between">
+                <span className="text-orange-600">Major</span>
+                <span className="font-bold">
+                  {loading.alerts ? '...' : alerts.major}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-yellow-600">Minor</span>
+                <span className="font-bold">
+                  {loading.alerts ? '...' : alerts.minor}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Production Status */}
+          <motion.div variants={itemVariants} className="bg-white rounded-xl shadow p-6">
+            <div className="flex justify-between items-center">
+              <h3 className="font-medium text-gray-700">Production Status</h3>
+              <BarChart className="text-blue-600" />
+            </div>
+            <div className="mt-4">
+              <div className="relative pt-1">
+                <div className="flex justify-between text-sm text-blue-600 font-semibold">
+                  <span>Progress</span>
+                  <span>
+                    {loading.total || loading.equipment 
+                      ? '...' 
+                      : `${Math.round((activeEquipment / totalEquipment) * 100)}%`}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Health</p>
-                  <p className={`text-xl font-bold ${getHealthColor(sensor.health)}`}>{sensor.health}%</p>
+                <div className="w-full bg-blue-200 h-2 rounded mt-1">
+                  <motion.div
+                    className="bg-blue-500 h-2 rounded"
+                    initial={{ width: 0 }}
+                    animate={{ 
+                      width: loading.total || loading.equipment 
+                        ? '100%' 
+                        : `${(activeEquipment / totalEquipment) * 100}%` 
+                    }}
+                    transition={{ duration: 1 }}
+                  />
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Temperature Chart */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white p-6 rounded-lg shadow-lg"
-        >
-          <div className="flex items-center space-x-2 mb-4">
-            <Thermometer className="w-6 h-6 text-red-500" />
-            <h2 className="text-lg font-semibold">Motor Temperature Monitoring</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={sensorData}>
-              <defs>
-                <linearGradient id="tempColor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ff7300" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#ff7300" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis domain={[60, 90]} />
-              <Tooltip />
-              <Legend />
-              <Area type="monotone" dataKey="temperature" stroke="#ff7300" fill="url(#tempColor)" name="Temperature (°C)" />
-            </AreaChart>
-          </ResponsiveContainer>
+            </div>
+          </motion.div>
         </motion.div>
 
-        {/* Vibration Chart */}
+        {/* Equipment Overview */}
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="bg-white p-6 rounded-lg shadow-lg"
+          className="bg-white rounded-xl shadow p-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
         >
-          <div className="flex items-center space-x-2 mb-4">
-            <Waves className="w-6 h-6 text-blue-500" />
-            <h2 className="text-lg font-semibold">Vibration Analysis</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={sensorData}>
-              <defs>
-                <linearGradient id="vibColor" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis domain={[0, 5]} />
-              <Tooltip />
-              <Legend />
-              <Area type="monotone" dataKey="vibration" stroke="#3b82f6" fill="url(#vibColor)" name="Vibration (mm/s)" />
-            </AreaChart>
-          </ResponsiveContainer>
+          <h2 className="text-xl font-bold mb-4">Equipment Overview</h2>
+          <table className="w-full border-collapse border border-gray-200">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-200 p-2 text-left">ID</th>
+                <th className="border border-gray-200 p-2 text-left">Name</th>
+                <th className="border border-gray-200 p-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {equipment.map((eq) => (
+                <tr key={eq.id} className="hover:bg-gray-50">
+                  <td className="border border-gray-200 p-2">{eq.id}</td>
+                  <td className="border border-gray-200 p-2">{eq.name}</td>
+                  <td className="border border-gray-200 p-2">
+                    <span
+                      className={`flex items-center gap-2 px-2 py-1 rounded text-white ${
+                        eq.status === 'active' ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                    >
+                      {eq.status === 'active' ? 
+                        <CheckCircle className="w-4 h-4" /> : 
+                        <XCircle className="w-4 h-4" />}
+                      {eq.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </motion.div>
-      </div>
 
-      {/* System Status Chart */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-lg shadow-lg mb-6"
-      >
-        <div className="flex items-center space-x-2 mb-4">
-          <MonitorCheck className="w-6 h-6 text-green-500" />
-          <h2 className="text-lg font-semibold">System Health Status</h2>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={sensorData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" />
-            <YAxis domain={[0, 100]} />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="systemStatus" stroke="#10b981" name="System Health (%)" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </motion.div>
+       
+           </main>
     </div>
   );
-};
+}
 
 export default UserDashboard;
